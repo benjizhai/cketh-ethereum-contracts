@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "openzeppelin-contracts/access/Ownable.sol";
 import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 import "openzeppelin-contracts/proxy/Clones.sol";
-import "../../wallet/src/Wallet.sol";
+import "src/Wallet.sol";
 
 contract Factory is Ownable, ReentrancyGuard {
     address _walletImplementation;
