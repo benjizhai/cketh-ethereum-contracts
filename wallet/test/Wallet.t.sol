@@ -9,16 +9,6 @@ contract WalletTest is Test {
 
     function setUp() public {
         wallet = new Wallet();
-        wallet.setNumber(0);
     }
 
-    function testIncrement() public {
-        wallet.increment();
-        assertEq(wallet.number(), 1);
-    }
-
-    function testSetNumber(uint256 x) public {
-        wallet.setNumber(x);
-        assertEq(wallet.number(), x);
-    }
 }
