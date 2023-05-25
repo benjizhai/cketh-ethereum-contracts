@@ -1,0 +1,6 @@
+[submodule "cketh-ethereum-contracts/lib/forge-std"]
+	path = cketh-ethereum-contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "cketh-ethereum-contracts/lib/openzeppelin-contracts"]
+	path = cketh-ethereum-contracts/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
