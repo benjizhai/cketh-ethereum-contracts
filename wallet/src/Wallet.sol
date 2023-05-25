@@ -2,40 +2,39 @@
 pragma solidity ^0.8.20;
 
 import "openzeppelin-contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/token/ERC721/IERC721.sol";
+import "openzeppelin-contracts/token/ERC721/IERC721Receiver.sol";
+import "openzeppelin-contracts/access/Ownable.sol";
 import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
-contract Wallet is ReentrancyGuard {
-    address owner;
+contract Wallet is Ownable, ReentrancyGuard {
 
-    constructor() {
-        owner = msg.sender;
+    // ETH auto forwarder
+    receive() external payable {
+        payable(owner()).transfer(msg.value);
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not owner");
-        _;
+    function onERC721Received(
+        address,
+        address,
+        uint256 tokenId,
+        bytes calldata
+    ) external returns (bytes4) {
+        // ERC721 auto forwarder
+        // IERC721(_msgSender()).safeTransferFrom(address(this), owner(), tokenId);
+        return this.onERC721Received.selector;
     }
 
-    function withdraw(uint256 amount, address payable to) public onlyOwner nonReentrant {
-        to.transfer(amount);
+    function withdraw(uint256 amount) public onlyOwner nonReentrant {
+        payable(owner()).transfer(amount);
     }
 
-    function withdrawERC20(
-        address token,
-        uint256 amount,
-        address to
-    ) public onlyOwner nonReentrant {
-        IERC20(token).transfer(to, amount);
+    function withdrawERC20(address token, uint256 amount) public onlyOwner nonReentrant {
+        IERC20(token).transfer(owner(), amount);
     }
 
-    /// End
-    uint256 public number;
-
-    function setNumber(uint256 newNumber) public {
-        number = newNumber;
+    function withdrawERC721(address token, uint256 tokenId) public onlyOwner nonReentrant {
+        IERC721(token).safeTransferFrom(address(this), owner(), tokenId);
     }
 
-    function increment() public {
-        number++;
-    }
 }
