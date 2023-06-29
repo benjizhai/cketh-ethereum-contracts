@@ -10,22 +10,28 @@ import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 contract Wallet is Ownable, ReentrancyGuard {
 
     // ETH auto forwarder
+    // TODO: verify gas
     receive() external payable {
         payable(owner()).transfer(msg.value);
     }
 
+    // ERC20 auto forwarder
     function onERC721Received(
-        address,
-        address,
+        address from,
+        address to,
         uint256 tokenId,
-        bytes calldata
+        bytes calldata data
     ) external returns (bytes4) {
         // ERC721 auto forwarder
-        // IERC721(_msgSender()).safeTransferFrom(address(this), owner(), tokenId);
+        IERC721(_msgSender()).safeTransferFrom(address(this), owner(), tokenId, data);
         return this.onERC721Received.selector;
     }
 
     function withdraw(uint256 amount) public onlyOwner nonReentrant {
+        payable(owner()).transfer(amount);
+    }
+
+    function withdrawAll() public onlyOwner nonReentrant {
         payable(owner()).transfer(amount);
     }
 
@@ -36,5 +42,7 @@ contract Wallet is Ownable, ReentrancyGuard {
     function withdrawERC721(address token, uint256 tokenId) public onlyOwner nonReentrant {
         IERC721(token).safeTransferFrom(address(this), owner(), tokenId);
     }
+
+    // fund rescue methods verifying signature from factory.signer
 
 }
