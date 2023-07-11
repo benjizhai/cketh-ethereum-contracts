@@ -5,7 +5,7 @@ Ethereum contracts for ckETH
 https://github.com/foundry-rs/foundry
 
 ##Goerli deployed contract
-https://goerli.etherscan.io/address/0x273792bEc87a65196eD36FcCBaD80F1661f6846F
+https://goerli.etherscan.io/address/0x31fD588344FFDEc56FEd5110dA9F43Dc8DBF5015
 
 ##Deploy
 ```
