@@ -3,12 +3,14 @@ pragma solidity ^0.8.20;
 
 import "openzeppelin-contracts/access/Ownable.sol";
 import "openzeppelin-contracts/security/ReentrancyGuard.sol";
+import "openzeppelin-contracts/security/Pausable.sol";
 import "openzeppelin-contracts/proxy/Clones.sol";
 import "src/Wallet.sol";
 
-contract Factory is Ownable, ReentrancyGuard {
+contract Factory is Ownable, Pausable, ReentrancyGuard {
     address _walletImplementation;
-    mapping (address => uint256) _fees; // fees for each token, eth is 0xee
+    bytes32 _walletHash;
+    mapping (address => uint256) _fees; // fees for each token, eth address is set to 0xee
     address public signer; // tECDSA signer to release funds
     // mapping (bytes32 => address) _wallets;
     // bytes32[] _principalsList;
@@ -17,6 +19,7 @@ contract Factory is Ownable, ReentrancyGuard {
     event SignerChanged(address indexed signer);
     event Registered(bytes32 indexed principal, address indexed sender, uint256 amount);
     event Spawned(bytes32 indexed principal, address indexed addr);
+    event ReceivedETH(address indexed sender, uint256 amount, bytes32 indexed principal);
     event CollectedETH(Wallet[] wallets, uint256[] amounts);
     event CollectedERC20(address indexed token, Wallet[] wallets, uint256[] amounts);
     event CollectedERC721(address indexed token, Wallet[] wallets, uint256[] tokenids);
@@ -26,13 +29,22 @@ contract Factory is Ownable, ReentrancyGuard {
     event FeeReleasedETH(address indexed token, bytes32 indexed feeRecipient, uint256 amount);
     event FeeReleasedERC20(bytes32 indexed feeRecipient, uint256 amount);
 
-    constructor() {
+    constructor(address minterEOA) {
         _walletImplementation = address(new Wallet());
+        address addr = Clones.cloneDeterministic(_walletImplementation, 0);
+        _walletHash = addr.codehash;
+        _transferOwnership(minterEOA);
     }
 
-    // Receive ETH
-    // TODO: verify gas
+    // Receive ETH only from walletImplementations
     receive() external payable {
+        require(_msgSender().codehash == _walletHash, "Factory: only accepts ETH from wallets");
+    }
+
+    // Method for option 1
+    function deposit(bytes32 principal) external payable {
+        require(msg.value > _fees[address(0xee)], "Factory: amount must be greater than fees");
+        emit ReceivedETH(_msgSender(), msg.value, principal);
     }
 
     function setFees(address token, uint256 amount) external onlyOwner {
@@ -59,19 +71,19 @@ contract Factory is Ownable, ReentrancyGuard {
     }
 
     // Anyone can collect funds and get fees in ckETH/ckERC20
-    function collectETH(Wallet[] calldata wallets, bytes32[] calldata principals, bytes32 feeRecipient) external nonReentrant {
+    function collectETH(Wallet[] calldata wallets, bytes32[] calldata principals, uint256[] calldata amounts, bytes32 feeRecipient) external nonReentrant whenNotPaused {
         require(wallets.length + principals.length == amounts.length, "Factory: input length mismatch");
         for (uint256 i = 0; i < wallets.length; i++) { // TODO: check amount > fees
             wallets[i].withdraw(amounts[i]); // TODO: check call results and emit events accordingly
         }
         for (uint256 i = 0; i < principals.length; i++) {
-            address addr = principals[i].spawn(amounts[wallets.length + i]); // TODO: check call results and emit events accordingly
-            addr.withdraw(amounts[wallets.length + i]); // TODO: check call results and emit events accordingly
+            address addr = spawn(principals[i]); // TODO: check call results and emit events accordingly
+            Wallet(addr).withdraw(amounts[wallets.length + i]); // TODO: check call results and emit events accordingly
         }
         emit CollectedETH(wallets, amounts);
     }
 
-    function collectERC20(address token, Wallet[] calldata wallets, uint256[] calldata amounts) external nonReentrant {
+    function collectERC20(address token, Wallet[] calldata wallets, uint256[] calldata amounts) external nonReentrant whenNotPaused {
         require(wallets.length == amounts.length, "Factory: input length mismatch");
         for (uint256 i = 0; i < wallets.length; i++) {
             wallets[i].withdrawERC20(token, amounts[i]);
@@ -103,7 +115,7 @@ contract Factory is Ownable, ReentrancyGuard {
         emit SentERC721(token, wallets, tokenids);
     }
 
-    function computeAddress(bytes32 principal) external view returns (address addr) {
+    function computeAddress(bytes32 principal) public view returns (address addr) {
         addr = Clones.predictDeterministicAddress(_walletImplementation, principal);
     }
 
